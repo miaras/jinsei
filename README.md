@@ -51,6 +51,20 @@ There's no admin UI for this — it's small enough that `sqlite3
 data/jinsei.db` on the server is enough if you ever need to look at
 or edit it directly.
 
+### Resetting a password
+
+If someone's locked out (or you just need to set one manually):
+
+```bash
+node scripts/reset-password.js <username> <new-password>
+```
+
+Run it from this directory (same place as `server.js`), with the
+server stopped or running — either is fine, it talks to the database
+file directly. It hashes the new password the same way the app does,
+and clears any existing sessions for that user, so old logins stop
+working immediately.
+
 ## Environment variables
 
 | Variable            | Required | Notes                                                       |
