@@ -24,7 +24,7 @@
   --mono:'IBM Plex Mono',monospace;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
+html,body{height:100%;overflow:hidden}
 body{
   background:var(--paper);
   color:var(--ink);
@@ -144,8 +144,8 @@ input{font-family:inherit}
 
 /* ============ GAME SHELL ============ */
 #game{display:none;height:calc(100vh - 34px);height:calc(100dvh - 34px);margin-top:34px}
-#game.on{display:grid;grid-template-columns:minmax(0,1fr) 300px}
-main{display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--line)}
+#game.on{display:grid;grid-template-columns:minmax(0,1fr) 300px;grid-template-rows:100%}
+main{display:flex;flex-direction:column;min-width:0;min-height:0;border-right:1px solid var(--line)}
 
 header{
   display:flex;align-items:baseline;gap:14px;padding:12px 22px;
@@ -155,8 +155,23 @@ header{
 #hud{font-family:var(--mono);font-size:12px;color:var(--ink-soft);letter-spacing:.06em}
 #hud b{color:var(--ink);font-weight:500}
 
-#stream{flex:1;overflow-y:auto;padding:26px 26px 10px;scroll-behavior:smooth}
+#stream{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:26px 26px 10px}
 .entry{max-width:640px;margin:0 auto 22px}
+.scene-img{
+  width:100%;aspect-ratio:16/9;margin-bottom:14px;overflow:hidden;
+  border:1px solid var(--line);background:var(--paper-deep);
+}
+.scene-img img{
+  width:100%;height:100%;object-fit:cover;display:block;
+  filter:saturate(.85) sepia(.06);
+}
+.scene-img.loading{
+  position:relative;
+  background:linear-gradient(100deg,var(--paper-deep) 40%,#EFE8D6 50%,var(--paper-deep) 60%);
+  background-size:200% 100%;animation:shimmer 1.6s ease-in-out infinite;
+}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+@media (prefers-reduced-motion: reduce){ .scene-img.loading{animation:none} }
 .narr{font-family:var(--disp);font-size:16.5px;line-height:1.85;color:var(--ink)}
 .narr em{color:var(--ai);font-style:normal}
 .narr.live::after, .npc .jp.live::after{
@@ -253,11 +268,17 @@ header{
 .dead-panel button:hover{background:var(--shu)}
 
 /* ============ SIDEBAR: RESIDENCE CARD ============ */
-aside{overflow-y:auto;padding:18px 16px;background:var(--paper-deep)}
+aside{
+  display:flex;flex-direction:column;min-height:0;overflow:hidden;
+  padding:18px 16px;background:var(--paper-deep);
+}
 .card{
-  background:#FBF8EF;border:1.5px solid var(--ink);padding:0;
+  background:#FBF8EF;border:1.5px solid var(--ink);padding:0;flex-shrink:0;
   box-shadow:5px 5px 0 rgba(35,31,27,.14);
-  position:sticky;top:0;z-index:2;
+}
+#side-scroll{
+  flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;
+  margin-top:2px;
 }
 .card-head{
   display:flex;justify-content:space-between;align-items:center;
@@ -318,7 +339,7 @@ aside{overflow-y:auto;padding:18px 16px;background:var(--paper-deep)}
   main{border-right:none}
   aside{display:none}
   #game.show-card main{display:none}
-  #game.show-card aside{display:block}
+  #game.show-card aside{display:flex}
   .cardtoggle{display:inline-block !important}
 }
 .cardtoggle{
@@ -387,11 +408,14 @@ aside{overflow-y:auto;padding:18px 16px;background:var(--paper-deep)}
       <button class="level-btn sel" data-lv="basic"><span class="jp">少し</span><span class="en">Survival phrases</span></button>
       <button class="level-btn" data-lv="conv"><span class="jp">日常会話</span><span class="en">Can hold a conversation</span></button>
     </div>
+    <!-- Hardcore mode selector — disabled for now, uncomment to re-enable.
+         The JS wiring below tolerates its absence; everything defaults to normal mode.
     <span class="field-label">World / 世界のモード</span>
     <div class="levels world-levels" id="world-toggle">
       <button class="level-btn sel" data-world="normal"><span class="jp">通常</span><span class="en">Grounded &amp; warm</span></button>
       <button class="level-btn hardcore-btn" data-world="hardcore"><span class="jp">鬼畜</span><span class="en">Hostile, absurd, surreal</span></button>
     </div>
+    -->
     <button id="begin-btn">上陸する — Begin new life</button>
     <p class="setup-note">Type in Japanese or rōmaji. Your story is generated as you live it, and saved automatically to your account.</p>
     <p class="setup-note"><span id="setup-username"></span> · <a href="#" id="setup-logout" style="color:var(--ink-soft)">log out</a></p>
@@ -439,14 +463,16 @@ aside{overflow-y:auto;padding:18px 16px;background:var(--paper-deep)}
       <div id="stamps"><span class="stamps-label">Milestones · 記録</span></div>
     </div>
 
-    <div class="panel">
-      <h3>People · 人間関係</h3>
-      <div id="people"><span class="empty-note">No one yet. Say hello to someone.</span></div>
-    </div>
+    <div id="side-scroll">
+      <div class="panel">
+        <h3>People · 人間関係</h3>
+        <div id="people"><span class="empty-note">No one yet. Say hello to someone.</span></div>
+      </div>
 
-    <div class="panel">
-      <h3>Words you've earned · 語彙帳</h3>
-      <div id="vocab-list"><span class="empty-note">Words appear here as you meet them.</span></div>
+      <div class="panel">
+        <h3>Words you've earned · 語彙帳</h3>
+        <div id="vocab-list"><span class="empty-note">Words appear here as you meet them.</span></div>
+      </div>
     </div>
   </aside>
 </div>
@@ -525,6 +551,8 @@ BETTER: (improved Japanese with rōmaji in parentheses, or none)
 (0-2 lines, each exactly "jp | romaji | english meaning", or a single line NONE)
 @@SUGGESTIONS@@
 (2-3 short rōmaji phrases the player might try next, one per line)
+@@SCENE@@
+(one vivid, purely VISUAL sentence describing the CURRENT setting for a text-to-image model — place, light, weather, objects, textures, mood. 12-25 words. ABSOLUTELY NO PEOPLE: no characters, no bodies, no faces, no figures, not even implied ones like "a queue of commuters" or "a crowded platform" — describe the empty space itself. Match the tone already established above.)
 @@STATE@@
 (one single-line JSON object, no line breaks inside it: {"day":int,"time":"morning|afternoon|evening|night","location":"short place name","yen":int,"hunger":0-100,"health":0-100,"alive":true|false,"job":"job title or null","visa":"visa status","relationships":[{"name":"...","role":"...","level":1-5}],"flags":["short plot memory strings, max 10"]})
 @@MILESTONE@@
@@ -675,7 +703,7 @@ function resumeGame(save){
     h.style.animation='none'; h.textContent=label;
     $('stamps').appendChild(h);
   });
-  renderCard(); scrollDown(); $('say').focus();
+  renderCard(); scrollDown(true); $('say').focus();
 }
 checkExistingSession();
 
@@ -702,7 +730,7 @@ async function turn(playerText, directive){
   S.busy = true; $('send').disabled = true;
   const think = document.createElement('div');
   think.className='thinking'; think.innerHTML='相手が考えている <span>·</span><span>·</span><span>·</span>';
-  stream.appendChild(think); scrollDown();
+  stream.appendChild(think); scrollDown(true);
 
   const spendNote = S.hintSpend ? `\nNOTE: the player paid ¥${S.hintSpend} for phrase hints (already deducted in CURRENT STATE — carry the yen figure forward, do not re-deduct).` : '';
   S.hintSpend = 0;
@@ -713,7 +741,7 @@ Respond per the rules. Remember the language gate and continue ongoing arcs from
 
   const msgs = [...S.history, {role:'user', content:userMsg}];
 
-  /* live DOM scaffolding — built incrementally as tokens arrive */
+  /* live DOM scaffolding — built incrementally as revealed text grows */
   let entry=null, narrDiv=null;
   let npcDiv=null, npcWho=null, npcJp=null, npcRomaji=null, npcEn=null;
   let buf='', sections={}, gotAnyText=false, thinkGone=false;
@@ -756,6 +784,53 @@ Respond per the rules. Remember the language gate and continue ongoing arcs from
     scrollDown();
   }
 
+  /* Network delivery is bursty (a handful of characters per chunk, arriving
+     irregularly) — rendering straight off each chunk looks stuttery. Instead,
+     chunks just extend `buf`, and a separate rAF loop reveals it at a steady
+     character rate, so the letters flow evenly regardless of how lumpy the
+     underlying network delivery is. */
+  const REVEAL_CHARS_PER_SEC = 220;
+  let revealedLen=0, doneReading=false, renderScheduled=false, lastFrameTime=null;
+  let resolveFinished; const finished = new Promise(res=>{ resolveFinished=res; });
+  let sceneImageStarted=false;
+
+  function maybeStartSceneImage(){
+    /* sections.STATE only exists once the @@STATE@@ marker itself has been
+       revealed, which proves the @@SCENE@@ section ahead of it is complete
+       — not still mid-sentence. That's the earliest safe moment to fire
+       the image request, well before FEEDBACK/VOCAB/MILESTONE have streamed. */
+    if(sceneImageStarted || !entry) return;
+    if(sections.SCENE!==undefined && sections.STATE!==undefined){
+      sceneImageStarted=true;
+      if(sections.SCENE.toUpperCase()!=='NONE') attachSceneImage(entry, sections.SCENE);
+    }
+  }
+  function scheduleRender(){
+    if(renderScheduled) return;
+    renderScheduled=true;
+    requestAnimationFrame(renderStep);
+  }
+  function renderStep(ts){
+    renderScheduled=false;
+    if(lastFrameTime==null) lastFrameTime=ts;
+    const dt=(ts-lastFrameTime)/1000; lastFrameTime=ts;
+    const step=Math.max(2, Math.round(REVEAL_CHARS_PER_SEC*dt));
+    const target=buf.length;
+    if(revealedLen<target){
+      revealedLen=Math.min(target, revealedLen+step);
+      sections=parseSections(buf.slice(0, revealedLen));
+      updateLive();
+      maybeStartSceneImage();
+    }
+    if(revealedLen<target){
+      scheduleRender();
+    } else if(doneReading){
+      resolveFinished();
+    }
+    /* else: caught up but network still working — go idle until the next
+       chunk calls scheduleRender() again */
+  }
+
   let streamOk=false, authExpired=false;
   try{
     const r = await fetch(API_ENDPOINT,{
@@ -783,15 +858,19 @@ Respond per the rules. Remember the language gate and continue ongoing arcs from
         if(evt.type==='content_block_delta' && evt.delta && evt.delta.type==='text_delta'){
           buf += evt.delta.text;
           gotAnyText=true;
-          sections = parseSections(buf);
-          updateLive();
+          scheduleRender();
         }
       }
     }
     streamOk = gotAnyText;
   }catch(e){
     streamOk = gotAnyText; /* keep whatever partial content arrived */
+  } finally {
+    doneReading = true;
+    scheduleRender(); /* ensures the reveal loop notices EOF even with nothing left to reveal */
   }
+
+  if(gotAnyText) await finished; /* let the reveal loop catch up to what actually arrived */
 
   removeThink();
 
@@ -800,13 +879,13 @@ Respond per the rules. Remember the language gate and continue ongoing arcs from
     d.className='feedback miss';
     if(authExpired){
       d.innerHTML='<span class="fb-mark">セッション切れ</span>Your session expired. Log in again to keep playing — your progress up to your last save is safe.';
-      stream.appendChild(d); scrollDown();
+      stream.appendChild(d); scrollDown(true);
       $('game').classList.remove('on');
       $('auth').classList.remove('hide');
       setAuthMode('login');
     } else {
       d.innerHTML='<span class="fb-mark">接続エラー</span>The line went quiet — the connection failed. Say it again to retry.';
-      stream.appendChild(d); scrollDown();
+      stream.appendChild(d); scrollDown(true);
     }
     S.busy=false; $('send').disabled=false; return;
   }
@@ -817,18 +896,47 @@ Respond per the rules. Remember the language gate and continue ongoing arcs from
   if(npcJp) npcJp.classList.remove('live');
 
   finalizeTurn(sections, playerText!==null);
+  if(!sceneImageStarted && entry && sections.SCENE && sections.SCENE.toUpperCase()!=='NONE'){
+    attachSceneImage(entry, sections.SCENE);
+  }
 
   S.history.push({role:'user', content:userMsg});
   S.history.push({role:'assistant', content:buf});
   if(S.history.length > 16) S.history = S.history.slice(-16);
 
   saveGame();
-  S.busy=false; $('send').disabled=false; $('say').focus();
+  S.busy=false; $('send').disabled=false;
+}
+
+/* ================= SCENE IMAGE (Flux Schnell, background only) ================= */
+async function attachSceneImage(entry, prompt){
+  const wrap=document.createElement('div'); wrap.className='scene-img loading';
+  entry.insertBefore(wrap, entry.firstChild);
+  try{
+    const r = await fetch('/api/image', {
+      method:'POST', headers:{'Content-Type':'application/json'}, credentials:'same-origin',
+      body: JSON.stringify({ prompt })
+    });
+    if(!r.ok) throw new Error('image request failed');
+    const d = await r.json();
+    if(!d.url) throw new Error('no url');
+    const img=new Image();
+    img.onload=()=>{
+      wrap.classList.remove('loading');
+      wrap.appendChild(img);
+      scrollDown();
+    };
+    img.onerror=()=>{ wrap.remove(); };
+    img.src=d.url;
+    img.alt='';
+  }catch(e){
+    wrap.remove(); /* no image this turn — game continues unaffected */
+  }
 }
 
 /* ================= SECTION PARSING ================= */
 function parseSections(buf){
-  const re=/@@(NARRATION|NPC|FEEDBACK|VOCAB|SUGGESTIONS|STATE|MILESTONE|END)@@/g;
+  const re=/@@(NARRATION|NPC|FEEDBACK|VOCAB|SUGGESTIONS|SCENE|STATE|MILESTONE|END)@@/g;
   const matches=[...buf.matchAll(re)];
   const secs={};
   for(let i=0;i<matches.length;i++){
@@ -922,7 +1030,7 @@ function addYou(t){
   const isAction=/^\s*\*[^*]+\*\s*$/.test(t);
   const html=esc(t).replace(/\*([^*]+)\*/g,'<em class="act">$1</em>');
   y.innerHTML=`<span class="bubble${isAction?' action':''}">${html}</span><div class="tag">${isAction?'行動 · ACTION':'あなた · YOU'}</div>`;
-  stream.appendChild(y); scrollDown();
+  stream.appendChild(y); scrollDown(true);
 }
 
 function addStamp(label){
@@ -974,7 +1082,12 @@ function renderCard(){
 }
 
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-function scrollDown(){requestAnimationFrame(()=>{stream.scrollTop=stream.scrollHeight;});}
+function scrollDown(force){
+  requestAnimationFrame(()=>{
+    const nearBottom = stream.scrollHeight - stream.scrollTop - stream.clientHeight < 80;
+    if(force || nearBottom) stream.scrollTop = stream.scrollHeight;
+  });
+}
 
 /* ================= DEATH ================= */
 function lockForDeath(){

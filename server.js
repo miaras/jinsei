@@ -244,8 +244,86 @@ app.post('/api/turn', requireAuth, async (req, res) => {
   }
 });
 
+/* =====================================================================
+   SCENE IMAGES — one per turn, generated with Flux Schnell (via
+   Replicate). The game master's SCENE section is a short, people-free
+   description of the current setting; this route turns that into an
+   image and never lets the client touch the Replicate token directly.
+===================================================================== */
+const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN;
+const REPLICATE_URL = 'https://api.replicate.com/v1/models/black-forest-labs/flux-schnell/predictions';
+
+// Flux Schnell has no negative-prompt input, so "no people" has to be
+// baked into the positive prompt itself. This is best-effort, not a
+// guarantee — occasionally a figure or silhouette will still slip in.
+const NO_PEOPLE_SUFFIX =
+  ', in the style of a shin-hanga Japanese woodblock print, flat color planes, ' +
+  'visible paper texture, bokashi ink gradients, muted indigo and vermilion palette, ' +
+  'empty of people, no humans, no figures, no silhouettes, no crowds, uninhabited, ' +
+  'no text, no watermark';
+
+if (!REPLICATE_TOKEN) {
+  console.warn(
+    '⚠️  REPLICATE_API_TOKEN is not set. Copy .env.example to .env and add a token from ' +
+    'replicate.com/account/api-tokens, or /api/image will fail on every request. ' +
+    'The game still works without it — turns just won\'t have a scene image.'
+  );
+}
+
+app.post('/api/image', requireAuth, async (req, res) => {
+  const { prompt } = req.body || {};
+  if (typeof prompt !== 'string' || !prompt.trim()) {
+    return res.status(400).json({ error: 'A prompt is required.' });
+  }
+  if (!REPLICATE_TOKEN) {
+    return res.status(500).json({ error: 'Server is missing REPLICATE_API_TOKEN.' });
+  }
+
+  const fullPrompt = prompt.trim().slice(0, 400) + NO_PEOPLE_SUFFIX;
+
+  let r;
+  try {
+    r = await fetch(REPLICATE_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${REPLICATE_TOKEN}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'wait' // block until the (fast) prediction finishes, simpler than polling
+      },
+      body: JSON.stringify({
+        input: {
+          prompt: fullPrompt,
+          aspect_ratio: '16:9',
+          output_format: 'webp',
+          num_outputs: 1,
+          go_fast: true
+        }
+      })
+    });
+  } catch (err) {
+    console.error('Could not reach Replicate:', err);
+    return res.status(502).json({ error: 'Could not reach the image generation service.' });
+  }
+
+  let data;
+  try { data = await r.json(); } catch (err) { data = null; }
+
+  if (!r.ok || !data) {
+    console.error('Replicate error:', r.status, data);
+    return res.status(502).json({ error: 'Image generation failed.' });
+  }
+
+  const url = Array.isArray(data.output) ? data.output[0] : data.output;
+  if (!url) {
+    console.error('Replicate returned no output:', data);
+    return res.status(502).json({ error: 'No image returned.' });
+  }
+
+  res.json({ url });
+});
+
 app.get('/health', (req, res) => {
-  res.json({ ok: true, keyConfigured: Boolean(API_KEY) });
+  res.json({ ok: true, keyConfigured: Boolean(API_KEY), imagesConfigured: Boolean(REPLICATE_TOKEN) });
 });
 
 const PORT = process.env.PORT || 3000;

@@ -1,9 +1,10 @@
 # 人生 (JINSEI) — server
 
-A small Express + SQLite backend for the JINSEI game. It does two things:
-holds your Anthropic API key server-side (streaming Claude's response
-through to the page as it's generated), and gives each player an
-account so their life is saved on the server instead of one browser.
+A small Express + SQLite backend for the JINSEI game. It does three
+things: holds your Anthropic API key server-side (streaming Claude's
+response through to the page as it's generated), gives each player an
+account so their life is saved on the server instead of one browser,
+and generates a background image for every turn with Flux Schnell.
 
 ## Setup
 
@@ -72,6 +73,38 @@ working immediately.
 | `ANTHROPIC_API_KEY`  | yes      | from console.anthropic.com                                   |
 | `PORT`                | no       | defaults to 3000                                              |
 | `COOKIE_SECURE`       | no       | set `true` once you're serving over HTTPS (e.g. behind Caddy) |
+
+## Environment variables
+
+| Variable               | Required | Notes                                                       |
+|-------------------------|----------|--------------------------------------------------------------|
+| `ANTHROPIC_API_KEY`     | yes      | from console.anthropic.com                                   |
+| `REPLICATE_API_TOKEN`   | no       | from replicate.com/account/api-tokens — powers scene images  |
+| `PORT`                  | no       | defaults to 3000                                              |
+| `COOKIE_SECURE`         | no       | set `true` once you're serving over HTTPS (e.g. behind Caddy) |
+
+### Scene images
+
+Every turn, the game master also writes a short, purely visual
+description of the current setting (no people in it, by instruction).
+`/api/image` sends that to Flux Schnell on Replicate and the image
+appears above the narration once it's ready — the text stream never
+waits on it, so a slow or failed image never blocks play.
+
+Two things worth knowing:
+
+- **"No people" is best-effort, not guaranteed.** Flux Schnell has no
+  negative-prompt input (unlike SDXL-style models), so the "empty of
+  people" instruction is baked into the positive prompt on both the
+  game-master side (it's told never to describe people in the scene
+  text) and the server side (an explicit suffix is appended before
+  sending to Replicate). Occasionally a figure or silhouette will
+  still slip through — that's a real model limitation, not a bug.
+- **This costs money per turn.** Flux Schnell is cheap (a fraction of
+  a cent per image on Replicate), but it's not free, and it's called
+  automatically every turn once `REPLICATE_API_TOKEN` is set. Leave
+  it unset if you'd rather the game ran text-only — everything else
+  works identically either way.
 
 ## Deploying
 
