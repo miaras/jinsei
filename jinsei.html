@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>人生 — A Life in Japan</title>
+<meta name="description" content="人生 (JINSEI) — a text-adventure life simulator that only responds to Japanese. Land in Japan with nothing, build a life, spoken into being.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23F3EEE1'/%3E%3Ccircle cx='50' cy='50' r='34' fill='none' stroke='%23B93A2E' stroke-width='6'/%3E%3Ctext x='50' y='63' font-size='34' text-anchor='middle' fill='%23B93A2E' font-family='serif'%3E生%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;600;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F3EEE1;      /* kinari washi */
+  --paper-deep:#EAE3D1;
+  --ink:#231F1B;        /* sumi */
+  --ink-soft:#5A5347;
+  --ai:#2E5077;         /* indigo — working accent */
+  --ai-soft:#DCE3EC;
+  --shu:#B93A2E;        /* hanko vermilion — stamps & milestones ONLY */
+  --line:#C7BCA3;
+  --ok:#3E6B4F;
+  --disp:'Shippori Mincho','Hiragino Mincho ProN','Yu Mincho',serif;
+  --body:'Zen Kaku Gothic New','Hiragino Kaku Gothic ProN','Yu Gothic',sans-serif;
+  --mono:'IBM Plex Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--body);
+  font-size:15px;
+  line-height:1.6;
+  /* faint laid-paper texture */
+  background-image:repeating-linear-gradient(0deg,rgba(35,31,27,.022) 0 1px,transparent 1px 26px);
+}
+button{font-family:inherit;cursor:pointer}
+input{font-family:inherit}
+
+/* ============ FIXED STATUS BAR ============ */
+#statusbar{
+  position:fixed;top:0;left:0;right:0;z-index:50;
+  display:flex;align-items:center;gap:0;
+  background:var(--ink);color:var(--paper);
+  font-family:var(--mono);font-size:12.5px;letter-spacing:.04em;
+  height:34px;padding:0 16px;
+}
+#statusbar.hide{display:none}
+.sb-item{display:flex;align-items:center;gap:7px;padding:0 16px;border-right:1px solid rgba(243,238,225,.18);height:100%}
+.sb-item:last-child{border-right:none}
+.sb-label{color:rgba(243,238,225,.5);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase}
+.sb-val{font-weight:500;color:var(--paper)}
+.sb-val.yen{color:#E8D9A8}
+.sb-brand{font-family:var(--disp);font-weight:800;font-size:14px;letter-spacing:.1em;margin-right:auto;padding-right:16px}
+.sb-save{margin-left:auto;font-size:10px;color:rgba(243,238,225,.45);white-space:nowrap;opacity:.45;transition:opacity .3s}
+
+/* ============ SETUP SCREEN ============ */
+#setup{
+  min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:66px 20px 32px;gap:0;
+}
+.setup-title{
+  font-family:var(--disp);font-weight:800;font-size:clamp(64px,14vw,120px);
+  line-height:1.05;letter-spacing:.04em;text-align:center;
+}
+.setup-sub{
+  font-family:var(--disp);font-size:15px;letter-spacing:.32em;text-transform:uppercase;
+  color:var(--ink-soft);margin:10px 0 6px;text-align:center;
+}
+.setup-lede{max-width:520px;text-align:center;color:var(--ink-soft);margin:14px 0 36px}
+.setup-card{
+  width:min(560px,100%);border:1px solid var(--line);background:#F8F4E9;
+  padding:28px 28px 24px;box-shadow:4px 4px 0 var(--paper-deep);
+}
+.field-label{
+  font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--ink-soft);display:block;margin-bottom:8px;
+}
+#name-input{
+  width:100%;border:1px solid var(--line);background:var(--paper);
+  padding:10px 12px;font-size:16px;margin-bottom:22px;border-radius:0;
+}
+#name-input:focus{outline:2px solid var(--ai);outline-offset:1px}
+.levels{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:24px}
+.level-btn{
+  border:1px solid var(--line);background:var(--paper);padding:12px 8px;text-align:center;
+  transition:transform .08s;
+}
+.level-btn:focus-visible{outline:2px solid var(--ai)}
+.level-btn .jp{font-family:var(--disp);font-weight:600;font-size:18px;display:block}
+.level-btn .en{font-size:11.5px;color:var(--ink-soft);display:block;margin-top:3px}
+.level-btn.sel{border-color:var(--ai);background:var(--ai-soft);transform:translate(-1px,-1px);box-shadow:2px 2px 0 var(--ai)}
+#begin-btn{
+  width:100%;background:var(--ink);color:var(--paper);border:none;padding:14px;
+  font-family:var(--disp);font-weight:600;font-size:17px;letter-spacing:.14em;
+}
+#begin-btn:hover{background:var(--ai)}
+#begin-btn:disabled{opacity:.5;cursor:wait}
+.setup-note{font-size:12px;color:var(--ink-soft);margin-top:14px;text-align:center}
+
+/* ============ GAME SHELL ============ */
+#game{display:none;height:calc(100vh - 34px);height:calc(100dvh - 34px);margin-top:34px}
+#game.on{display:grid;grid-template-columns:minmax(0,1fr) 300px}
+main{display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--line)}
+
+header{
+  display:flex;align-items:baseline;gap:14px;padding:12px 22px;
+  border-bottom:1px solid var(--line);flex-wrap:wrap;
+}
+.brand{font-family:var(--disp);font-weight:800;font-size:20px;letter-spacing:.08em}
+#hud{font-family:var(--mono);font-size:12px;color:var(--ink-soft);letter-spacing:.06em}
+#hud b{color:var(--ink);font-weight:500}
+
+#stream{flex:1;overflow-y:auto;padding:26px 26px 10px;scroll-behavior:smooth}
+.entry{max-width:640px;margin:0 auto 22px}
+.narr{font-family:var(--disp);font-size:16.5px;line-height:1.85;color:var(--ink)}
+.narr em{color:var(--ai);font-style:normal}
+.narr.live::after, .npc .jp.live::after{
+  content:'▍'; display:inline-block; margin-left:2px; color:var(--ai);
+  animation:caret 0.9s steps(1) infinite;
+}
+@keyframes caret{50%{opacity:0}}
+
+.npc{
+  margin-top:14px;border-left:3px solid var(--ai);padding:10px 16px;
+  background:rgba(46,80,119,.05);
+}
+.npc .who{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ai);margin-bottom:4px}
+.npc .jp{font-family:var(--disp);font-size:19px;font-weight:600;line-height:1.8}
+.npc .romaji{font-family:var(--mono);font-size:12px;color:var(--ink-soft);margin-top:4px}
+.npc .en{font-size:13px;color:var(--ink-soft);margin-top:6px;display:none;border-top:1px dashed var(--line);padding-top:6px}
+.npc.revealed .en{display:block}
+.reveal-btn{
+  margin-top:8px;background:none;border:1px solid var(--line);font-family:var(--mono);
+  font-size:11px;padding:3px 10px;color:var(--ink-soft);letter-spacing:.08em;
+}
+.reveal-btn:hover{border-color:var(--ai);color:var(--ai)}
+
+.you{
+  margin:0 auto 22px;max-width:640px;text-align:right;
+}
+.you .bubble{
+  display:inline-block;background:var(--ink);color:var(--paper);
+  padding:9px 16px;font-size:15.5px;max-width:85%;text-align:left;
+}
+.you .tag{font-family:var(--mono);font-size:10.5px;color:var(--ink-soft);letter-spacing:.14em;margin-top:4px}
+.you .bubble .act{font-style:italic;opacity:.92}
+.you .bubble.action{background:transparent;color:var(--ink-soft);border:1px dashed var(--line);font-style:italic}
+
+.feedback{
+  max-width:640px;margin:-10px auto 22px;font-size:13px;padding:8px 14px;
+  border:1px dashed var(--line);color:var(--ink-soft);background:#F8F4E9;
+}
+.feedback.ok{border-color:var(--ok)}
+.feedback.miss{border-color:var(--shu)}
+.feedback .better{font-family:var(--disp);font-weight:600;color:var(--ink);font-size:14.5px}
+.feedback .fb-mark{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;margin-right:8px}
+.feedback.ok .fb-mark{color:var(--ok)}
+.feedback.miss .fb-mark{color:var(--shu)}
+
+.milestone-banner{
+  max-width:640px;margin:0 auto 24px;text-align:center;font-family:var(--disp);
+  font-weight:800;font-size:18px;letter-spacing:.2em;color:var(--shu);
+  border-top:2px solid var(--shu);border-bottom:2px solid var(--shu);padding:10px 0;
+}
+
+.thinking{max-width:640px;margin:0 auto 22px;font-family:var(--mono);font-size:12px;color:var(--ink-soft)}
+.thinking span{animation:blink 1.2s infinite}
+.thinking span:nth-child(2){animation-delay:.2s}
+.thinking span:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,100%{opacity:.2}50%{opacity:1}}
+
+/* suggestions + input */
+#dock{border-top:1px solid var(--line);padding:12px 22px 16px;background:var(--paper)}
+#chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;max-width:640px;margin-left:auto;margin-right:auto}
+.chip{
+  border:1px solid var(--line);background:#F8F4E9;font-size:12.5px;padding:5px 12px;
+  color:var(--ink-soft);
+}
+.chip:hover{border-color:var(--ai);color:var(--ai)}
+.chip.locked{border-style:dashed;color:var(--ink-soft)}
+.chip.locked:hover{border-color:var(--shu);color:var(--shu)}
+.chip .price{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;border-right:1px solid var(--line);padding-right:7px;margin-right:7px}
+.chip.broke{border-color:var(--shu);color:var(--shu)}
+.inrow{display:flex;gap:10px;max-width:640px;margin:0 auto}
+#say{
+  flex:1;border:1px solid var(--ink);background:#FBF8F0;padding:12px 14px;
+  font-size:16px;border-radius:0;min-width:0;
+}
+#say:focus{outline:2px solid var(--ai);outline-offset:1px}
+#send{
+  background:var(--ink);color:var(--paper);border:none;padding:0 26px;
+  font-family:var(--disp);font-weight:600;font-size:16px;letter-spacing:.1em;
+}
+#send:hover{background:var(--ai)}
+#send:disabled{opacity:.5;cursor:wait}
+.dock-hint{max-width:640px;margin:8px auto 0;font-size:11px;color:var(--ink-soft);font-family:var(--mono)}
+
+/* ============ SIDEBAR: RESIDENCE CARD ============ */
+aside{overflow-y:auto;padding:18px 16px;background:var(--paper-deep)}
+.card{
+  background:#FBF8EF;border:1.5px solid var(--ink);padding:0;position:relative;
+  box-shadow:5px 5px 0 rgba(35,31,27,.14);
+}
+.card-head{
+  display:flex;justify-content:space-between;align-items:center;
+  border-bottom:1.5px solid var(--ink);padding:8px 12px;
+}
+.card-head .t{font-family:var(--disp);font-weight:800;font-size:14px;letter-spacing:.24em}
+.card-head .g{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--ink-soft)}
+.card-body{padding:12px;position:relative}
+.crow{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px dotted var(--line);font-size:12.5px}
+.crow:last-child{border-bottom:none}
+.crow .k{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);padding-top:2px;white-space:nowrap}
+.crow .v{text-align:right;font-weight:500;min-width:0;overflow-wrap:anywhere}
+.crow .v.yen{font-family:var(--mono)}
+.vert{
+  position:absolute;right:6px;top:50%;transform:translateY(-50%);
+  writing-mode:vertical-rl;font-family:var(--disp);font-weight:600;font-size:10px;
+  letter-spacing:.3em;color:var(--line);pointer-events:none;
+}
+
+/* hanko stamps */
+#stamps{display:flex;flex-wrap:wrap;gap:8px;padding:10px 12px;border-top:1.5px solid var(--ink);min-height:52px}
+.stamps-label{font-family:var(--mono);font-size:9px;letter-spacing:.16em;color:var(--ink-soft);width:100%;text-transform:uppercase}
+.hanko{
+  width:56px;height:56px;border:2.5px solid var(--shu);border-radius:50%;
+  color:var(--shu);display:flex;align-items:center;justify-content:center;text-align:center;
+  font-family:var(--disp);font-weight:800;font-size:9.5px;line-height:1.25;padding:5px;
+  transform:rotate(var(--rot,-6deg)) scale(1);
+  animation:stampIn .45s cubic-bezier(.2,1.6,.4,1);
+  mix-blend-mode:multiply;opacity:.88;
+}
+@keyframes stampIn{
+  0%{transform:rotate(var(--rot)) scale(2.4);opacity:0}
+  60%{transform:rotate(var(--rot)) scale(.92);opacity:1}
+  100%{transform:rotate(var(--rot)) scale(1);opacity:.88}
+}
+@media (prefers-reduced-motion: reduce){
+  .hanko{animation:none}
+  #stream{scroll-behavior:auto}
+}
+
+.panel{margin-top:16px}
+.panel h3{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:8px}
+#people .p{display:flex;justify-content:space-between;font-size:12.5px;padding:4px 0;border-bottom:1px dotted var(--line)}
+#people .hearts{color:var(--shu);letter-spacing:2px;font-size:11px}
+#vocab-list .w{padding:5px 0;border-bottom:1px dotted var(--line);font-size:12.5px}
+#vocab-list .w .jp{font-family:var(--disp);font-weight:600;font-size:14px}
+#vocab-list .w .gloss{color:var(--ink-soft);font-size:11.5px;font-family:var(--mono)}
+.empty-note{font-size:11.5px;color:var(--ink-soft);font-style:italic}
+
+/* ============ RESPONSIVE ============ */
+@media (max-width:860px){
+  #game.on{grid-template-columns:1fr;grid-template-rows:1fr auto}
+  main{border-right:none}
+  aside{display:none}
+  #game.show-card main{display:none}
+  #game.show-card aside{display:block}
+  .cardtoggle{display:inline-block !important}
+}
+.cardtoggle{
+  display:none;margin-left:auto;background:none;border:1px solid var(--line);
+  font-family:var(--mono);font-size:11px;padding:3px 10px;color:var(--ink-soft);
+}
+</style>
+</head>
+<body>
+
+<!-- ================= FIXED STATUS BAR ================= -->
+<div id="statusbar" class="hide">
+  <span class="sb-brand">人生</span>
+  <span class="sb-item"><span class="sb-label">Day</span><span class="sb-val" id="sb-day">—</span></span>
+  <span class="sb-item"><span class="sb-label">Time</span><span class="sb-val" id="sb-time">—</span></span>
+  <span class="sb-item"><span class="sb-label">Funds</span><span class="sb-val yen" id="sb-yen">—</span></span>
+  <span class="sb-save" id="sb-save"></span>
+</div>
+
+<!-- ================= SETUP ================= -->
+<section id="setup">
+  <div class="setup-sub">A life, spoken into being</div>
+  <h1 class="setup-title">人生</h1>
+  <div class="setup-sub" style="letter-spacing:.5em">JINSEI</div>
+  <p class="setup-lede">
+    You land at Narita with a suitcase, ¥180,000, and whatever Japanese you carry in your head.
+    Find work. Find a home. Find people. Nobody here will switch to English for you —
+    the life you build is made of the words you can say.
+  </p>
+  <div class="setup-card" id="setup-card">
+    <div id="continue-block" style="display:none;margin-bottom:22px;padding-bottom:20px;border-bottom:1px dashed var(--line)">
+      <span class="field-label">Saved life found · 続きから</span>
+      <div id="continue-summary" style="font-size:13px;color:var(--ink-soft);margin-bottom:12px"></div>
+      <div style="display:flex;gap:10px">
+        <button id="continue-btn" style="flex:1;background:var(--ai);color:var(--paper);border:none;padding:11px;font-family:var(--disp);font-weight:600;font-size:14.5px;letter-spacing:.08em">続きから · Continue</button>
+        <button id="wipe-btn" style="background:none;border:1px solid var(--line);color:var(--ink-soft);padding:11px 14px;font-size:12px;font-family:var(--mono)">Delete save</button>
+      </div>
+    </div>
+    <label class="field-label" for="name-input">Your name / 名前</label>
+    <input id="name-input" placeholder="e.g. Miara" maxlength="24" autocomplete="off">
+    <span class="field-label">Your Japanese / 日本語のレベル</span>
+    <div class="levels" id="levels">
+      <button class="level-btn" data-lv="zero"><span class="jp">ゼロ</span><span class="en">A few words at best</span></button>
+      <button class="level-btn sel" data-lv="basic"><span class="jp">少し</span><span class="en">Survival phrases</span></button>
+      <button class="level-btn" data-lv="conv"><span class="jp">日常会話</span><span class="en">Can hold a conversation</span></button>
+    </div>
+    <button id="begin-btn">上陸する — Begin new life</button>
+    <p class="setup-note">Type in Japanese or rōmaji. Your story is generated as you live it, and saved automatically to this browser.</p>
+  </div>
+</section>
+
+<!-- ================= GAME ================= -->
+<div id="game">
+  <main>
+    <header>
+      <span class="brand">人生</span>
+      <span id="hud"></span>
+      <button class="cardtoggle" id="cardtoggle">在留カード</button>
+    </header>
+    <div id="stream"></div>
+    <div id="dock">
+      <div id="chips"></div>
+      <div class="inrow">
+        <input id="say" placeholder="日本語で話してください… (rōmaji OK)" autocomplete="off">
+        <button id="send">話す</button>
+      </div>
+      <div class="dock-hint">ENTER to speak · *asterisks* for actions · hints cost ¥500 each — the phrasebook isn't free</div>
+    </div>
+  </main>
+
+  <aside id="sidebar">
+    <div class="card">
+      <div class="card-head"><span class="t">在留カード</span><span class="g">RESIDENCE CARD · 日本国</span></div>
+      <div class="card-body">
+        <div class="vert">日本国政府</div>
+        <div class="crow"><span class="k">Name</span><span class="v" id="c-name">—</span></div>
+        <div class="crow"><span class="k">Status</span><span class="v" id="c-visa">—</span></div>
+        <div class="crow"><span class="k">Day</span><span class="v" id="c-day">—</span></div>
+        <div class="crow"><span class="k">Location</span><span class="v" id="c-loc">—</span></div>
+        <div class="crow"><span class="k">Work</span><span class="v" id="c-job">—</span></div>
+        <div class="crow"><span class="k">Funds</span><span class="v yen" id="c-yen">—</span></div>
+      </div>
+      <div id="stamps"><span class="stamps-label">Milestones · 記録</span></div>
+    </div>
+
+    <div class="panel">
+      <h3>People · 人間関係</h3>
+      <div id="people"><span class="empty-note">No one yet. Say hello to someone.</span></div>
+    </div>
+
+    <div class="panel">
+      <h3>Words you've earned · 語彙帳</h3>
+      <div id="vocab-list"><span class="empty-note">Words appear here as you meet them.</span></div>
+    </div>
+  </aside>
+</div>
+
+<script>
+/* =====================================================================
+   DEPLOYMENT NOTE — READ BEFORE HOSTING THIS FILE YOURSELF
+   ---------------------------------------------------------------------
+   Inside claude.ai this page's fetch() to api.anthropic.com is proxied
+   and authenticated automatically — no key needed here.
+
+   If you host this .html file yourself (your own server, GitHub Pages,
+   etc.) that proxy is gone. A direct browser call to api.anthropic.com
+   will fail (no credentials, and Anthropic's API does not allow
+   browser-origin requests). You need a tiny backend to stand in:
+
+     1. Write a small backend route (Node/Cloudflare Worker/etc.) that:
+          - accepts { system, messages, stream } as JSON
+          - calls api.anthropic.com/v1/messages server-side, attaching
+            your API key from an environment variable (NEVER put a key
+            in this file — it would be visible to every visitor)
+          - since this game streams responses, the route must pipe the
+            SSE response straight through to the browser rather than
+            buffering it (most frameworks: just forward the response
+            body/stream as-is)
+     2. Point API_ENDPOINT below at that route, e.g. '/api/turn'.
+
+   Everything else in this file — save system, UI, game logic — needs
+   no changes to work with that setup.
+===================================================================== */
+const API_ENDPOINT = 'https://api.anthropic.com/v1/messages';
+
+/* ================= STATE ================= */
+const S = {
+  name:'', level:'basic',
+  state:{ day:1, time:'afternoon', location:'Narita Airport', yen:180000,
+          job:null, visa:'Temporary Visitor (90 days)', relationships:[], flags:[] },
+  vocab:[], history:[], stamps:[], busy:false, hintSpend:0
+};
+const HINT_COST = 500;
+const LV_DESC = {
+  zero:'an absolute beginner (knows perhaps konnichiwa and arigatou). NPCs must use the very simplest Japanese, short sentences, and gesture a lot. Judge attempts extremely leniently; single words count as communication.',
+  basic:'a survival-level speaker (greetings, numbers, simple requests). NPCs use plain short sentences. Judge leniently; reward any comprehensible attempt.',
+  conv:'a daily-conversation speaker (roughly JLPT N4–N3). NPCs speak naturally but clearly, occasionally using casual forms and keigo. Judge with normal standards; expect particles and conjugation, but minor errors still communicate.'
+};
+
+const SYSTEM = () => `You are the game engine of 人生 (JINSEI), a slice-of-life text adventure set in present-day Japan that doubles as a Japanese teacher. The player, ${S.name}, has just moved to Japan alone and must build an entire life — job hunting, apartment, friendships, romance, maybe marriage, visa renewals, festivals, illness, everything — over months of in-game time. The player's Japanese level: ${LV_DESC[S.level]}
+
+CORE RULE — THE LANGUAGE GATE: The player must communicate in Japanese (rōmaji input is fine and should be read as Japanese) to accomplish anything. If they write in English, NPCs respond with polite confusion (「すみません、英語はちょっと…」) and the situation does not advance — except rare NPCs who plausibly know some English, who may help a little but push the player toward Japanese. Never let English fully succeed.
+
+ACTIONS: Text wrapped in asterisks is a physical action, not speech — e.g. *wait*, *point at the menu*, *bow*, *hand over 1000 yen*. Actions may be written in English; they bypass the language gate because they are non-verbal. Narrate their consequences realistically. Gesturing and pointing can get simple things done (as in real Japan) but anything requiring words — jobs, friendships, paperwork, romance — still demands spoken Japanese. A message can mix both: *bowing* sumimasen. When a turn is action-only, FEEDBACK should be UNDERSTOOD: none, not a language judgment.
+
+STORY RULES:
+- Grounded, warm, specific. Real neighborhoods, konbini, trains, izakaya, city hall paperwork, seasons. Small moments matter.
+- Continue long arcs across turns using the state and history provided. Introduce recurring NPCs with names and personalities; deepen relationships gradually (level 1-5).
+- Advance time realistically. Spend and earn yen realistically (rent, food, wages). If money runs low, life gets hard.
+- Award a "milestone" ONLY for major life events: FIRST FRIEND, GOT A JOB, APARTMENT, FIRST DATE, PROMOTION, ENGAGED, MARRIED, VISA RENEWED, etc. (short, in caps, max 3 words). Otherwise write NONE.
+- Teach: NPC lines should be natural for the player's level, and each turn introduce 0-2 genuinely useful words.
+- Judge the player's Japanese in FEEDBACK: UNDERSTOOD yes/partial/no. Give ONE short coaching NOTE and, if helpful, a corrected/improved sentence in BETTER (Japanese + rōmaji in parentheses). Be encouraging, never pedantic. If there is no player utterance to judge (game start, or an action-only turn), write UNDERSTOOD: none, NOTE: none, BETTER: none.
+- Keep everything SHORT. Narration 2-3 sentences. One NPC line per turn, 1-2 sentences.
+
+OUTPUT FORMAT — critical: your output is displayed to the player character-by-character as you generate it (streaming), so narration and NPC speech must appear FIRST, in the order the player should see them, before any structured data. Respond in PLAIN TEXT ONLY — no markdown, no code fences, no JSON wrapper around the whole thing — using EXACTLY these markers, each alone on its own line, in this exact order. Omit the whole @@NPC@@ section if no NPC speaks this turn. Every other section must always appear; write NONE where nothing applies.
+
+@@NARRATION@@
+(2-3 sentences, second person, English, present tense)
+@@NPC@@
+NAME: (npc name or role)
+JP: (Japanese line)
+ROMAJI: (rōmaji reading)
+EN: (English translation)
+@@FEEDBACK@@
+UNDERSTOOD: yes|partial|no|none
+NOTE: (one short coaching sentence, or none)
+BETTER: (improved Japanese with rōmaji in parentheses, or none)
+@@VOCAB@@
+(0-2 lines, each exactly "jp | romaji | english meaning", or a single line NONE)
+@@SUGGESTIONS@@
+(2-3 short rōmaji phrases the player might try next, one per line)
+@@STATE@@
+(one single-line JSON object, no line breaks inside it: {"day":int,"time":"morning|afternoon|evening|night","location":"short place name","yen":int,"job":"job title or null","visa":"visa status","relationships":[{"name":"...","role":"...","level":1-5}],"flags":["short plot memory strings, max 10"]})
+@@MILESTONE@@
+(CAPS LABEL or NONE)
+@@END@@
+
+Never deviate from this format, never add commentary before @@NARRATION@@ or after @@END@@. The state you return is the new authoritative state — update it every turn, carry forward what hasn't changed, and use flags as your plot memory.`;
+/* ================= DOM ================= */
+const $ = id => document.getElementById(id);
+const stream = $('stream');
+const SAVE_KEY = 'jinsei_save_v1';
+
+document.querySelectorAll('.level-btn').forEach(b=>{
+  b.onclick=()=>{document.querySelectorAll('.level-btn').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');S.level=b.dataset.lv;};
+});
+$('cardtoggle').onclick=()=>{ $('game').classList.toggle('show-card');
+  $('cardtoggle').textContent = $('game').classList.contains('show-card') ? '← 物語へ' : '在留カード'; };
+
+$('begin-btn').onclick=start;
+$('send').onclick=()=>speak();
+$('say').addEventListener('keydown',e=>{if(e.key==='Enter')speak();});
+
+/* ---- persistence ---- */
+function saveGame(){
+  try{
+    localStorage.setItem(SAVE_KEY, JSON.stringify({
+      name:S.name, level:S.level, state:S.state, vocab:S.vocab,
+      history:S.history, stamps:S.stamps, streamHTML: stream.innerHTML,
+      savedAt: Date.now()
+    }));
+    flashSaved();
+  }catch(e){ /* storage unavailable — fail silently, game still playable */ }
+}
+function flashSaved(){
+  const el=$('sb-save');
+  el.textContent='保存済み · saved';
+  el.style.opacity='1';
+  clearTimeout(flashSaved._t);
+  flashSaved._t=setTimeout(()=>{el.style.opacity='.45';},900);
+}
+function loadSave(){
+  try{ const raw=localStorage.getItem(SAVE_KEY); return raw?JSON.parse(raw):null; }catch(e){ return null; }
+}
+function checkForSave(){
+  const save=loadSave();
+  if(!save) return;
+  $('continue-block').style.display='block';
+  const days = save.state.day;
+  $('continue-summary').textContent =
+    `${save.name} · Day ${days} · ${save.state.location||'?'} · ¥${Number(save.state.yen).toLocaleString()}`
+    + (save.state.job?` · ${save.state.job}`:'');
+  $('continue-btn').onclick=()=>resumeGame(save);
+  $('wipe-btn').onclick=()=>{
+    if(confirm('Delete this saved life? This cannot be undone.')){
+      localStorage.removeItem(SAVE_KEY);
+      $('continue-block').style.display='none';
+    }
+  };
+}
+function resumeGame(save){
+  S.name=save.name; S.level=save.level; S.state=save.state; S.vocab=save.vocab||[];
+  S.history=save.history||[]; S.stamps=save.stamps||[];
+  $('setup').style.display='none';
+  $('game').classList.add('on');
+  $('statusbar').classList.remove('hide');
+  stream.innerHTML = save.streamHTML || '';
+  (S.stamps||[]).forEach(label=>{
+    const h=document.createElement('div'); h.className='hanko';
+    h.style.setProperty('--rot',(Math.random()*16-8).toFixed(1)+'deg');
+    h.style.animation='none'; h.textContent=label;
+    $('stamps').appendChild(h);
+  });
+  renderCard(); scrollDown(); $('say').focus();
+}
+checkForSave();
+
+async function start(){
+  S.name = $('name-input').value.trim() || 'Traveler';
+  $('begin-btn').disabled = true; $('begin-btn').textContent='着陸中…';
+  $('setup').style.display='none';
+  $('game').classList.add('on');
+  $('statusbar').classList.remove('hide');
+  renderCard();
+  await turn(null, `[GAME START] ${S.name} has just cleared customs at Narita Airport, Day 1, afternoon, with ¥180,000 and one suitcase. Open the story: set the scene vividly but briefly, have the first NPC encounter happen naturally (someone the player must speak Japanese with to get what they need — e.g. finding the right train into Tokyo). Give suggestions suited to their level.`);
+}
+
+/* ================= TURN ENGINE ================= */
+async function speak(){
+  const t = $('say').value.trim();
+  if(!t || S.busy) return;
+  $('say').value='';
+  addYou(t);
+  await turn(t, null);
+}
+
+async function turn(playerText, directive){
+  S.busy = true; $('send').disabled = true;
+  const think = document.createElement('div');
+  think.className='thinking'; think.innerHTML='相手が考えている <span>·</span><span>·</span><span>·</span>';
+  stream.appendChild(think); scrollDown();
+
+  const spendNote = S.hintSpend ? `\nNOTE: the player paid ¥${S.hintSpend} for phrase hints (already deducted in CURRENT STATE — carry the yen figure forward, do not re-deduct).` : '';
+  S.hintSpend = 0;
+  const userMsg = directive ? directive :
+`CURRENT STATE: ${JSON.stringify(S.state)}${spendNote}
+PLAYER SAYS: "${playerText}"
+Respond per the rules. Remember the language gate and continue ongoing arcs from flags/relationships.`;
+
+  const msgs = [...S.history, {role:'user', content:userMsg}];
+
+  /* live DOM scaffolding — built incrementally as tokens arrive */
+  let entry=null, narrDiv=null;
+  let npcDiv=null, npcWho=null, npcJp=null, npcRomaji=null, npcEn=null;
+  let buf='', sections={}, gotAnyText=false, thinkGone=false;
+
+  function removeThink(){ if(!thinkGone){ think.remove(); thinkGone=true; } }
+  function ensureEntry(){
+    if(entry) return;
+    removeThink();
+    entry=document.createElement('div'); entry.className='entry';
+    narrDiv=document.createElement('div'); narrDiv.className='narr live';
+    entry.appendChild(narrDiv);
+    stream.appendChild(entry);
+  }
+  function ensureNpcBlock(){
+    if(npcDiv) return;
+    ensureEntry();
+    npcDiv=document.createElement('div'); npcDiv.className='npc';
+    npcWho=document.createElement('div'); npcWho.className='who'; npcWho.textContent='…';
+    npcJp=document.createElement('div'); npcJp.className='jp live';
+    npcRomaji=document.createElement('div'); npcRomaji.className='romaji';
+    npcEn=document.createElement('div'); npcEn.className='en';
+    const rb=document.createElement('button'); rb.className='reveal-btn'; rb.textContent='訳を見る';
+    rb.onclick=()=>{npcDiv.classList.add('revealed'); rb.remove();};
+    npcDiv.appendChild(npcWho); npcDiv.appendChild(npcJp); npcDiv.appendChild(npcRomaji); npcDiv.appendChild(npcEn); npcDiv.appendChild(rb);
+    entry.appendChild(npcDiv);
+  }
+  function updateLive(){
+    if(sections.NARRATION!==undefined){
+      ensureEntry();
+      narrDiv.textContent = sections.NARRATION;
+    }
+    if(sections.NPC!==undefined){
+      ensureNpcBlock();
+      const p = parseNpc(sections.NPC);
+      npcWho.textContent = p.name || '…';
+      npcJp.textContent = p.jp || '';
+      npcRomaji.textContent = p.romaji || '';
+      npcEn.textContent = p.en || '';
+    }
+    scrollDown();
+  }
+
+  let streamOk=false;
+  try{
+    const r = await fetch(API_ENDPOINT,{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-6', max_tokens:1000, system:SYSTEM(), messages:msgs, stream:true})
+    });
+    if(!r.ok || !r.body) throw new Error('bad response');
+    const reader = r.body.getReader();
+    const decoder = new TextDecoder();
+    let lineBuf='';
+    while(true){
+      const {done, value} = await reader.read();
+      if(done) break;
+      lineBuf += decoder.decode(value, {stream:true});
+      const lines = lineBuf.split('\n');
+      lineBuf = lines.pop();
+      for(const line of lines){
+        const t=line.trim();
+        if(!t.startsWith('data:')) continue;
+        const payload=t.slice(5).trim();
+        if(!payload || payload==='[DONE]') continue;
+        let evt;
+        try{ evt=JSON.parse(payload); }catch(e){ continue; }
+        if(evt.type==='content_block_delta' && evt.delta && evt.delta.type==='text_delta'){
+          buf += evt.delta.text;
+          gotAnyText=true;
+          sections = parseSections(buf);
+          updateLive();
+        }
+      }
+    }
+    streamOk = gotAnyText;
+  }catch(e){
+    streamOk = gotAnyText; /* keep whatever partial content arrived */
+  }
+
+  removeThink();
+
+  if(!streamOk){
+    const d=document.createElement('div');
+    d.className='feedback miss';
+    d.innerHTML='<span class="fb-mark">接続エラー</span>The line went quiet — the connection failed. Say it again to retry.';
+    stream.appendChild(d); scrollDown();
+    S.busy=false; $('send').disabled=false; return;
+  }
+
+  sections = parseSections(buf);
+  updateLive();
+  if(narrDiv) narrDiv.classList.remove('live');
+  if(npcJp) npcJp.classList.remove('live');
+
+  finalizeTurn(sections, playerText!==null);
+
+  S.history.push({role:'user', content:userMsg});
+  S.history.push({role:'assistant', content:buf});
+  if(S.history.length > 16) S.history = S.history.slice(-16);
+
+  saveGame();
+  S.busy=false; $('send').disabled=false; $('say').focus();
+}
+
+/* ================= SECTION PARSING ================= */
+function parseSections(buf){
+  const re=/@@(NARRATION|NPC|FEEDBACK|VOCAB|SUGGESTIONS|STATE|MILESTONE|END)@@/g;
+  const matches=[...buf.matchAll(re)];
+  const secs={};
+  for(let i=0;i<matches.length;i++){
+    const name=matches[i][1];
+    const start=matches[i].index+matches[i][0].length;
+    const end=i+1<matches.length ? matches[i+1].index : buf.length;
+    secs[name]=buf.slice(start,end).trim();
+  }
+  return secs;
+}
+function parseField(text,label){
+  const re=new RegExp(label+':\\s*([\\s\\S]*?)(?=\\n[A-Z]+:|$)','i');
+  const m=text.match(re);
+  return m ? m[1].trim() : '';
+}
+function parseNpc(text){
+  return { name:parseField(text,'NAME'), jp:parseField(text,'JP'),
+           romaji:parseField(text,'ROMAJI'), en:parseField(text,'EN') };
+}
+function parseFeedbackBlock(text){
+  return { understood:(parseField(text,'UNDERSTOOD')||'none').toLowerCase(),
+           note:parseField(text,'NOTE'), better:parseField(text,'BETTER') };
+}
+
+/* ================= FINALIZE (structured data, arrives after prose) ================= */
+function finalizeTurn(sections, hadPlayerTurn){
+  if(hadPlayerTurn && sections.FEEDBACK){
+    const fb=parseFeedbackBlock(sections.FEEDBACK);
+    if(fb.understood && fb.understood!=='none'){
+      const f=document.createElement('div');
+      const u=fb.understood;
+      f.className='feedback '+(u==='yes'?'ok':u==='no'?'miss':'');
+      const mark = u==='yes'?'通じた ✓':u==='partial'?'半分通じた':'通じなかった ✗';
+      const betterOk = fb.better && fb.better.toLowerCase()!=='none';
+      f.innerHTML=`<span class="fb-mark">${mark}</span>${esc(fb.note||'')}`+
+        (betterOk ? `<div class="better">→ ${esc(fb.better)}</div>` : '');
+      stream.appendChild(f);
+    }
+  }
+
+  const milestone = (sections.MILESTONE && sections.MILESTONE.toUpperCase()!=='NONE') ? sections.MILESTONE.trim() : null;
+  if(milestone){
+    const m=document.createElement('div');
+    m.className='milestone-banner'; m.textContent='◆ '+milestone+' ◆';
+    stream.appendChild(m);
+    addStamp(milestone);
+  }
+
+  if(sections.VOCAB && sections.VOCAB.toUpperCase()!=='NONE'){
+    sections.VOCAB.split('\n').forEach(line=>{
+      const parts=line.split('|').map(s=>s.trim());
+      if(parts.length>=3 && parts[0] && !S.vocab.some(v=>v.jp===parts[0])){
+        S.vocab.unshift({jp:parts[0], romaji:parts[1], en:parts[2]});
+      }
+    });
+  }
+
+  if(sections.STATE){
+    try{
+      const a=sections.STATE.indexOf('{'), b=sections.STATE.lastIndexOf('}');
+      S.state = JSON.parse(sections.STATE.slice(a,b+1));
+    }catch(e){ /* keep prior state if malformed */ }
+  }
+
+  $('chips').innerHTML='';
+  const sugg=(sections.SUGGESTIONS||'').split('\n').map(s=>s.trim())
+    .filter(s=>s && s.toUpperCase()!=='NONE').slice(0,3);
+  sugg.forEach(s=>{
+    const c=document.createElement('button'); c.className='chip locked';
+    c.innerHTML=`<span class="price">¥${HINT_COST}</span> ヒントを買う`;
+    c.onclick=()=>{
+      if(c.classList.contains('locked')){
+        if(S.state.yen < HINT_COST){
+          c.classList.add('broke'); c.innerHTML='<span class="price">金欠</span> not enough yen';
+          setTimeout(()=>{c.classList.remove('broke'); c.innerHTML=`<span class="price">¥${HINT_COST}</span> ヒントを買う`;},1400);
+          return;
+        }
+        S.state.yen -= HINT_COST; S.hintSpend += HINT_COST;
+        c.classList.remove('locked'); c.textContent=s;
+        renderCard(); saveGame();
+      } else { $('say').value=c.textContent; $('say').focus(); }
+    };
+    $('chips').appendChild(c);
+  });
+
+  renderCard(); scrollDown();
+}
+
+function addYou(t){
+  const y=document.createElement('div'); y.className='you';
+  const isAction=/^\s*\*[^*]+\*\s*$/.test(t);
+  const html=esc(t).replace(/\*([^*]+)\*/g,'<em class="act">$1</em>');
+  y.innerHTML=`<span class="bubble${isAction?' action':''}">${html}</span><div class="tag">${isAction?'行動 · ACTION':'あなた · YOU'}</div>`;
+  stream.appendChild(y); scrollDown();
+}
+
+function addStamp(label){
+  const h=document.createElement('div'); h.className='hanko';
+  h.style.setProperty('--rot',(Math.random()*16-8).toFixed(1)+'deg');
+  h.textContent=label;
+  $('stamps').appendChild(h);
+  S.stamps.push(label);
+}
+
+const TIME_JP={morning:'朝',afternoon:'昼',evening:'夕方',night:'夜'};
+function renderCard(){
+  const st=S.state;
+  $('hud').innerHTML=`${esc(st.location)}${st.job?' · '+esc(st.job):' · 無職'}`;
+  $('sb-day').textContent='Day '+st.day;
+  $('sb-time').textContent=TIME_JP[st.time]||st.time;
+  $('sb-yen').textContent='¥'+Number(st.yen).toLocaleString();
+  $('c-name').textContent=S.name;
+  $('c-visa').textContent=st.visa||'—';
+  $('c-day').textContent='Day '+st.day+' · '+(TIME_JP[st.time]||st.time);
+  $('c-loc').textContent=st.location||'—';
+  $('c-job').textContent=st.job||'無職 · none';
+  $('c-yen').textContent='¥'+Number(st.yen).toLocaleString();
+
+  const pp=$('people');
+  if(st.relationships && st.relationships.length){
+    pp.innerHTML=st.relationships.map(r=>
+      `<div class="p"><span>${esc(r.name)} <span style="color:var(--ink-soft);font-size:11px">· ${esc(r.role)}</span></span>
+       <span class="hearts">${'●'.repeat(r.level||1)}${'○'.repeat(Math.max(0,5-(r.level||1)))}</span></div>`).join('');
+  } else pp.innerHTML='<span class="empty-note">No one yet. Say hello to someone.</span>';
+
+  const vl=$('vocab-list');
+  if(S.vocab.length){
+    vl.innerHTML=S.vocab.slice(0,30).map(w=>
+      `<div class="w"><span class="jp">${esc(w.jp)}</span> <span class="gloss">${esc(w.romaji||'')} — ${esc(w.en||'')}</span></div>`).join('');
+  }
+}
+
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function scrollDown(){requestAnimationFrame(()=>{stream.scrollTop=stream.scrollHeight;});}
+</script>
+</body>
+</html>
